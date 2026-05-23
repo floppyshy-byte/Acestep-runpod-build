@@ -1,24 +1,13 @@
 # =============================================================================
-# ACE-Step 1.5 — RunPod Serverless Worker (Slim)
+# ACE-Step 1.5 — RunPod Serverless Worker (Baked Weights)
 # =============================================================================
-# No model weights baked in. We rely on RunPod's cached model storage or
-# let ACE-Step download on first cold start. Image is ~2-3 GB vs ~15 GB.
+# Model weights are pre-downloaded during build. Image is ~15 GB but cold
+# starts are instant — no HuggingFace download on container startup.
 #
-# To use RunPod cached models, add these HF repo IDs when creating the endpoint:
-#   ACE-Step/Ace-Step1.5
-#   ACE-Step/acestep-v15-sft
-#
-# Layer ordering (large / stable -> small / volatile):
-#   1. Base image
-#   2. System runtime libraries
-#   3. Copy uv + /app (source code, .venv)
-#   4. Copy handler.py  <-- changes often; kept last for cache friendliness
-#   5. CMD
+# Use this if you want a fully self-contained image or if RunPod's cached
+# model storage doesn't work with ACE-Step's custom downloader.
 # =============================================================================
 
-# ---------------------------------------------------------------------------
-# Stage 1: Builder — compile Python deps only
-# ---------------------------------------------------------------------------
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -39,9 +28,14 @@ RUN git clone --depth 1 https://github.com/ACE-Step/ACE-Step-1.5.git .
 RUN uv sync
 RUN uv pip install runpod
 
-# ---------------------------------------------------------------------------
-# Stage 2: Runtime — lean image with only what's needed to run inference
-# ---------------------------------------------------------------------------
+ENV ACESTEP_CONFIG_PATH=acestep-v15-sft
+ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-1.7B
+ENV ACESTEP_CHECKPOINTS_DIR=/app/checkpoints
+RUN mkdir -p /app/checkpoints /app/models /tmp/outputs
+
+COPY download_models.py /app/download_models.py
+RUN uv run python3 /app/download_models.py
+
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -58,14 +52,12 @@ COPY --from=builder /app /app
 WORKDIR /app
 ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 
-# Environment defaults (override at runtime in RunPod console).
 ENV ACESTEP_CONFIG_PATH=acestep-v15-sft
 ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-1.7B
-ENV ACESTEP_CHECKPOINTS_DIR=/runpod-volume/checkpoints
-ENV HF_HOME=/runpod-volume/huggingface-cache/hub
-ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
+ENV ACESTEP_CHECKPOINTS_DIR=/app/checkpoints
+ENV HF_HOME=/app/models
+ENV TRANSFORMERS_CACHE=/app/models
 
-# Copy handler LAST so code changes don't invalidate dep layers.
 COPY handler.py /app/handler.py
 
 CMD ["python3", "-u", "/app/handler.py"]
