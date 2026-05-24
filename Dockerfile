@@ -71,7 +71,14 @@ ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
 ENV ACESTEP_DISABLE_DOWNLOAD=1
 ENV HF_HUB_OFFLINE=1
 ENV TRANSFORMERS_OFFLINE=1
+ENV ACESTEP_LM_BACKEND=pt
 ENV ACESTEP_VLLM_ENFORCE_EAGER=1
+ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
+ENV NCCL_P2P_DISABLE=1
+ENV NCCL_IB_DISABLE=1
+ENV PYTHONFAULTHANDLER=1
+ENV CUDA_VISIBLE_DEVICES=0
+ENV VLLM_ATTENTION_BACKEND=XFORMERS
 
 # Copy setup helper and handler LAST so code changes don't invalidate dep layers.
 COPY setup_models.py /app/setup_models.py
@@ -80,4 +87,4 @@ COPY gpu_config.py /app/acestep/gpu_config.py
 COPY audio_utils.py /app/acestep/audio_utils.py
 COPY llm_inference.py /app/acestep/llm_inference.py
 
-CMD ["python3", "-u", "/app/handler.py"]
+CMD ["python3", "-X", "faulthandler", "-u", "/app/handler.py"]

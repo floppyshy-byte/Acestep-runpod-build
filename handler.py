@@ -67,7 +67,7 @@ with timeout(INIT_TIMEOUT, "LLM handler init"):
     status, ok = llm_handler.initialize(
         checkpoint_dir="/app/models",
         lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B"),
-        backend="vllm",
+        backend="pt",
         device="cuda",
     )
 if not ok:
