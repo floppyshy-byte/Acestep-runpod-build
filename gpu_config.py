@@ -1047,6 +1047,7 @@ def get_lm_gpu_memory_ratio(
 
             ratio = min(0.9, max(0.1, ratio))
 
+            current_usage_gb = actual_total_gb - free_gb
             logger.info(
                 f"[get_lm_gpu_memory_ratio] model={model_size}, free={free_gb:.2f}GB, "
                 f"current_usage={current_usage_gb:.2f}GB, lm_target={total_target_gb:.2f}GB, "
