@@ -13,18 +13,22 @@ print("[ACE-Step] Initializing handlers...")
 dit_handler = AceStepHandler()
 llm_handler = LLMHandler()
 
-dit_handler.initialize_service(
+status, ok = dit_handler.initialize_service(
     project_root="/app",
     config_path=os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-xl-sft"),
     device="cuda",
 )
+if not ok:
+    raise RuntimeError(f"AceStepHandler initialization failed: {status}")
 
-llm_handler.initialize(
+status, ok = llm_handler.initialize(
     checkpoint_dir="/app/models",
     lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B"),
     backend="vllm",
     device="cuda",
 )
+if not ok:
+    raise RuntimeError(f"LLMHandler initialization failed: {status}")
 
 print("[ACE-Step] Handlers ready!")
 

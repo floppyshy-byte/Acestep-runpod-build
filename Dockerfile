@@ -66,6 +66,7 @@ ENV ACESTEP_MAIN_MODEL_COMPONENTS=acestep-v15-xl-sft,vae,Qwen3-Embedding-0.6B,ac
 ENV ACESTEP_CHECKPOINTS_DIR=/runpod-volume/checkpoints
 ENV HF_HOME=/runpod-volume/huggingface-cache/hub
 ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
+ENV ACESTEP_DISABLE_DOWNLOAD=1
 
 # Copy handler LAST so code changes don't invalidate dep layers.
 COPY handler.py /app/handler.py
