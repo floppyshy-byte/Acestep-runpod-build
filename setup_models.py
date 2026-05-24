@@ -33,7 +33,14 @@ def _find_hf_cache_snapshot(repo_id: str) -> Path | None:
     sanitized = repo_id.replace("/", "--")
     repo_cache = hf_home / f"models--{sanitized}"
     if not repo_cache.exists():
-        return None
+        # Case-insensitive fallback (RunPod may lowercase repo IDs)
+        target_name = f"models--{sanitized}"
+        for child in hf_home.iterdir():
+            if child.is_dir() and child.name.lower() == target_name.lower():
+                repo_cache = child
+                break
+        else:
+            return None
 
     refs_dir = repo_cache / "refs"
     snapshots_dir = repo_cache / "snapshots"
