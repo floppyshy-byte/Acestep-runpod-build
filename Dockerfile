@@ -50,7 +50,7 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libsndfile1 \
-    python3.11 python3.11-venv \
+    python3.11 python3.11-venv python3.11-dev \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
