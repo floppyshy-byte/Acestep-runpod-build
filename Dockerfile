@@ -68,7 +68,8 @@ ENV HF_HOME=/runpod-volume/huggingface-cache/hub
 ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
 ENV ACESTEP_DISABLE_DOWNLOAD=1
 
-# Copy handler LAST so code changes don't invalidate dep layers.
+# Copy setup helper and handler LAST so code changes don't invalidate dep layers.
+COPY setup_models.py /app/setup_models.py
 COPY handler.py /app/handler.py
 
 CMD ["python3", "-u", "/app/handler.py"]

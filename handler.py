@@ -4,6 +4,12 @@ import runpod
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
 from acestep.inference import GenerationParams, GenerationConfig, generate_music
+from setup_models import setup_checkpoints_from_cache
+
+# ---------------------------------------------------------------------------
+# Bridge RunPod HF cache to ACE-Step checkpoint layout
+# ---------------------------------------------------------------------------
+setup_checkpoints_from_cache()
 
 # ---------------------------------------------------------------------------
 # Initialize once at container startup (warm-start friendly)
