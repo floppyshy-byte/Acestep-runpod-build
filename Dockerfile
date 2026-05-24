@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-RUN git clone --depth 1 https://github.com/ACE-Step/ACE-Step-1.5.git .
+RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git .
 
 RUN uv sync
 RUN uv pip install runpod
@@ -59,8 +59,8 @@ WORKDIR /app
 ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 
 # Environment defaults (override at runtime in RunPod console).
-ENV ACESTEP_CONFIG_PATH=acestep-v15-sft
-ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-1.7B
+ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-sft
+ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-4B
 ENV ACESTEP_CHECKPOINTS_DIR=/runpod-volume/checkpoints
 ENV HF_HOME=/runpod-volume/huggingface-cache/hub
 ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub

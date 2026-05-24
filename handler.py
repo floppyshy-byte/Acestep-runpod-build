@@ -15,13 +15,13 @@ llm_handler = LLMHandler()
 
 dit_handler.initialize_service(
     project_root="/app",
-    config_path=os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-sft"),
+    config_path=os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-xl-sft"),
     device="cuda",
 )
 
 llm_handler.initialize(
     checkpoint_dir="/app/models",
-    lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-1.7B"),
+    lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B"),
     backend="vllm",
     device="cuda",
 )
