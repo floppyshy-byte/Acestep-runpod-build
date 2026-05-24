@@ -1,15 +1,50 @@
 import os
 import base64
+import signal
 import runpod
+from contextlib import contextmanager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
 from acestep.inference import GenerationParams, GenerationConfig, generate_music
 from setup_models import setup_checkpoints_from_cache
 
+
+# ---------------------------------------------------------------------------
+# Timeout helpers
+# ---------------------------------------------------------------------------
+
+class TimeoutError(Exception):
+    pass
+
+
+def _timeout_handler(signum, frame):
+    raise TimeoutError("Operation timed out")
+
+
+@contextmanager
+def timeout(seconds: int, label: str = "operation"):
+    """Signal-based timeout for Unix. Raises TimeoutError if exceeded."""
+    old = signal.signal(signal.SIGALRM, _timeout_handler)
+    old_alarm = signal.alarm(seconds)
+    try:
+        yield
+    except TimeoutError:
+        raise TimeoutError(f"{label} timed out after {seconds}s")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+        if old_alarm:
+            signal.alarm(old_alarm)
+
+
+GENERATION_TIMEOUT = int(os.getenv("ACESTEP_GENERATION_TIMEOUT", "300"))
+INIT_TIMEOUT = int(os.getenv("ACESTEP_INIT_TIMEOUT", "180"))
+
 # ---------------------------------------------------------------------------
 # Bridge RunPod HF cache to ACE-Step checkpoint layout
 # ---------------------------------------------------------------------------
-setup_checkpoints_from_cache()
+with timeout(INIT_TIMEOUT, "checkpoint setup"):
+    setup_checkpoints_from_cache()
 
 # ---------------------------------------------------------------------------
 # Initialize once at container startup (warm-start friendly)
@@ -19,20 +54,22 @@ print("[ACE-Step] Initializing handlers...")
 dit_handler = AceStepHandler()
 llm_handler = LLMHandler()
 
-status, ok = dit_handler.initialize_service(
-    project_root="/app",
-    config_path=os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-xl-sft"),
-    device="cuda",
-)
+with timeout(INIT_TIMEOUT, "DiT handler init"):
+    status, ok = dit_handler.initialize_service(
+        project_root="/app",
+        config_path=os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-xl-sft"),
+        device="cuda",
+    )
 if not ok:
     raise RuntimeError(f"AceStepHandler initialization failed: {status}")
 
-status, ok = llm_handler.initialize(
-    checkpoint_dir="/app/models",
-    lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B"),
-    backend="vllm",
-    device="cuda",
-)
+with timeout(INIT_TIMEOUT, "LLM handler init"):
+    status, ok = llm_handler.initialize(
+        checkpoint_dir="/app/models",
+        lm_model_path=os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B"),
+        backend="vllm",
+        device="cuda",
+    )
 if not ok:
     raise RuntimeError(f"LLMHandler initialization failed: {status}")
 
@@ -140,7 +177,14 @@ def handler(event):
     os.makedirs(save_dir, exist_ok=True)
 
     print(f"[ACE-Step] Generating: task={task_type}, caption={caption[:60]}...")
-    result = generate_music(dit_handler, llm_handler, params, config, save_dir=save_dir)
+    try:
+        with timeout(GENERATION_TIMEOUT, "music generation"):
+            result = generate_music(dit_handler, llm_handler, params, config, save_dir=save_dir)
+    except TimeoutError as exc:
+        return {
+            "error": "Generation timed out",
+            "details": str(exc),
+        }
 
     if not result.success:
         return {
