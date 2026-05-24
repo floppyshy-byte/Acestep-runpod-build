@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-ARG CACHEBUST=2
+ARG CACHEBUST=3
 RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git . && echo "cache-bust: ${CACHEBUST}"
 
 RUN uv sync
