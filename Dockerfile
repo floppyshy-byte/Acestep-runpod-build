@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — compile Python deps only
 # ---------------------------------------------------------------------------
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:13.2.1-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -42,7 +42,7 @@ RUN uv pip install runpod accelerate
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only what's needed to run inference
 # ---------------------------------------------------------------------------
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM nvidia/cuda:13.2.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
