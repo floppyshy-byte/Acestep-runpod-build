@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -90,6 +91,51 @@ def _validate_component(name: str, path: Path) -> None:
     print(f"[Validate] {name}: {'OK' if has_w else 'NO_WEIGHTS'} | files={files} dirs={dirs}")
 
 
+def _is_weight_file(path: Path) -> bool:
+    """Return True if the file is a large model weight file."""
+    return path.suffix.lower() in (".safetensors", ".bin", ".pt", ".pth", ".ckpt")
+
+
+def _mirror_component(src: Path, dst: Path) -> None:
+    """
+    Mirror src directory to dst.
+    Weight files are symlinked; everything else is copied.
+    """
+    if dst.exists() or dst.is_symlink():
+        if dst.is_symlink():
+            dst.unlink()
+        elif dst.is_dir():
+            pass
+        else:
+            dst.unlink()
+
+    dst.mkdir(parents=True, exist_ok=True)
+
+    for child in src.iterdir():
+        dst_child = dst / child.name
+        if child.is_dir():
+            _mirror_component(child, dst_child)
+        elif _is_weight_file(child):
+            if not dst_child.exists():
+                try:
+                    dst_child.symlink_to(child)
+                except OSError as exc:
+                    print(f"[Setup] ERROR linking weight {child.name}: {exc}")
+            else:
+                print(f"[Setup] SKIP: weight {child.name} already exists")
+        else:
+            if not dst_child.exists():
+                try:
+                    shutil.copy2(child, dst_child)
+                except PermissionError:
+                    shutil.copyfile(child, dst_child)
+                    shutil.copymode(child, dst_child)
+                except OSError as exc:
+                    print(f"[Setup] ERROR copying {child.name}: {exc}")
+            else:
+                print(f"[Setup] SKIP: file {child.name} already exists")
+
+
 def setup_checkpoints_from_cache() -> None:
     """
     Bridge RunPod's HF Model Cache to ACE-Step's expected checkpoint layout.
@@ -154,38 +200,25 @@ def setup_checkpoints_from_cache() -> None:
     for comp in components:
         _validate_component(comp, snapshot / comp)
 
-    # Create symlinks
-    print("\n[Setup] Creating symlinks:")
+    # Mirror components: symlink weights, copy everything else
+    print("\n[Setup] Mirroring components (symlink weights, copy code/config):")
     for comp in components:
         src = snapshot / comp
         dst = checkpoint_dir / comp
         if not src.exists():
             print(f"[Setup] SKIP: component '{comp}' not found in snapshot")
             continue
-        if dst.exists() or dst.is_symlink():
-            print(f"[Setup] SKIP: component '{comp}' already exists at {dst}")
-            continue
-        try:
-            dst.symlink_to(src, target_is_directory=True)
-            print(f"[Setup] LINKED {dst} -> {src}")
-        except OSError as exc:
-            print(f"[Setup] ERROR linking {comp}: {exc}")
+        _mirror_component(src, dst)
+        print(f"[Setup] MIRRORED {dst} <- {src}")
 
-    # Also link LM model for LLMHandler
+    # Also mirror LM model for LLMHandler
     lm_model = os.environ.get("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B")
     lm_src = snapshot / lm_model
     lm_dst = Path("/app/models") / lm_model
     if lm_src.exists():
         _validate_component(lm_model, lm_src)
-        if not (lm_dst.exists() or lm_dst.is_symlink()):
-            lm_dst.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                lm_dst.symlink_to(lm_src, target_is_directory=True)
-                print(f"[Setup] LINKED LM model {lm_dst} -> {lm_src}")
-            except OSError as exc:
-                print(f"[Setup] ERROR linking LM model: {exc}")
-        else:
-            print(f"[Setup] SKIP: LM model already exists at {lm_dst}")
+        _mirror_component(lm_src, lm_dst)
+        print(f"[Setup] MIRRORED LM model {lm_dst} <- {lm_src}")
     else:
         print(f"[Setup] WARNING: LM model '{lm_model}' not found in snapshot")
 
