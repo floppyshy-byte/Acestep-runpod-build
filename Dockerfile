@@ -38,7 +38,7 @@ ARG CACHEBUST=3
 RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git . && echo "cache-bust: ${CACHEBUST}"
 
 RUN uv sync
-RUN uv pip install runpod
+RUN uv pip install runpod accelerate
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only what's needed to run inference
@@ -79,6 +79,7 @@ ENV NCCL_IB_DISABLE=1
 ENV PYTHONFAULTHANDLER=1
 ENV CUDA_VISIBLE_DEVICES=0
 ENV VLLM_ATTENTION_BACKEND=XFORMERS
+ENV PYTORCH_CUDA_ALLOC_CONF=backend:native
 
 # Copy setup helper and handler LAST so code changes don't invalidate dep layers.
 COPY setup_models.py /app/setup_models.py

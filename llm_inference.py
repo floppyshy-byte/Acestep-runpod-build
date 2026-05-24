@@ -401,11 +401,22 @@ class LLMHandler:
     def _load_pytorch_model(self, model_path: str, device: str) -> Tuple[bool, str]:
         """Load PyTorch model from path and return (success, status_message)"""
         try:
-            self.llm = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
+            # Load directly with device_map to avoid explicit .to(device) which crashes
+            # on MIG GPUs with NVML assert in PyTorch CUDA allocator.
             if not self.offload_to_cpu:
-                self.llm = self.llm.to(device).to(self.dtype)
+                self.llm = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    torch_dtype=self.dtype,
+                    device_map="auto",
+                )
             else:
-                self.llm = self.llm.to("cpu").to(self.dtype)
+                self.llm = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    torch_dtype=self.dtype,
+                )
+                self.llm = self.llm.to("cpu")
             self.llm.eval()
             self.llm_backend = "pt"
             self.llm_initialized = True
