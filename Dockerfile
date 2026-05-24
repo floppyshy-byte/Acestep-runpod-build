@@ -76,5 +76,6 @@ ENV TRANSFORMERS_OFFLINE=1
 COPY setup_models.py /app/setup_models.py
 COPY handler.py /app/handler.py
 COPY gpu_config.py /app/acestep/gpu_config.py
+COPY audio_utils.py /app/acestep/audio_utils.py
 
 CMD ["python3", "-u", "/app/handler.py"]
