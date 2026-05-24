@@ -115,7 +115,7 @@ def handler(event):
     lyrics = job_input.get("lyrics", "[Instrumental]")
     duration = job_input.get("duration", 30)
     bpm = job_input.get("bpm")
-    keyscale = job_input.get("keyscale")
+    keyscale = job_input.get("keyscale", "N/A")
     inference_steps = job_input.get("inference_steps", 32)
     guidance_scale = job_input.get("guidance_scale", 7.0)
     shift = job_input.get("shift", 3.0)
