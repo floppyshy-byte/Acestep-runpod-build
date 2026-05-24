@@ -90,9 +90,9 @@ def handler(event):
         "duration": 120,               # seconds, 10-600
         "bpm": 128,                    # optional
         "keyscale": "C Major",         # optional
-        "inference_steps": 32,         # 8 for turbo, 32-64 for base/sft
+        "inference_steps": 50,         # 8 for turbo, 50 for xl-sft
         "guidance_scale": 7.0,
-        "shift": 3.0,                  # 3.0 recommended for turbo
+        "shift": 1.0,                  # 1.0 for xl-sft, 3.0 for turbo
         "seed": -1,
         "batch_size": 1,               # 1-8
         "audio_format": "mp3",         # mp3 | flac | wav
@@ -116,9 +116,9 @@ def handler(event):
     duration = job_input.get("duration", 30)
     bpm = job_input.get("bpm")
     keyscale = job_input.get("keyscale", "N/A")
-    inference_steps = job_input.get("inference_steps", 32)
+    inference_steps = job_input.get("inference_steps", 50)
     guidance_scale = job_input.get("guidance_scale", 7.0)
-    shift = job_input.get("shift", 3.0)
+    shift = job_input.get("shift", 1.0)
     seed = job_input.get("seed", -1)
     batch_size = job_input.get("batch_size", 1)
     audio_format = job_input.get("audio_format", "mp3")
