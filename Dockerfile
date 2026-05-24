@@ -61,6 +61,8 @@ ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 # Environment defaults (override at runtime in RunPod console).
 ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-sft
 ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-4B
+ENV ACESTEP_MAIN_MODEL_REPO=Floppyshy/Ace-Step1.5-Custom
+ENV ACESTEP_MAIN_MODEL_COMPONENTS=acestep-v15-xl-sft,vae,Qwen3-Embedding-0.6B,acestep-5Hz-lm-4B
 ENV ACESTEP_CHECKPOINTS_DIR=/runpod-volume/checkpoints
 ENV HF_HOME=/runpod-volume/huggingface-cache/hub
 ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
