@@ -62,9 +62,10 @@ def handler(event):
         "thinking": false,             # use LM planner for structure
         "lm_temperature": 0.85,
 
-        # For cover / repaint only
-        "src_audio_base64": "...",     # base64-encoded source audio
-        "audio_cover_strength": 0.7,   # 0.1 (loose) - 1.0 (strict)
+        # For cover / repaint / style-transfer
+        "reference_audio_base64": "...",  # base64-encoded reference audio (style influence)
+        "src_audio_base64": "...",        # base64-encoded source audio (audio-to-audio)
+        "audio_cover_strength": 0.7,      # 0.1 (loose) - 1.0 (strict)
         "repainting_start": 10.0,
         "repainting_end": 20.0,
       }
@@ -105,6 +106,15 @@ def handler(event):
     if thinking:
         params.thinking = True
         params.lm_temperature = lm_temperature
+
+    # Handle reference audio for style transfer / cover
+    ref_audio_b64 = job_input.get("reference_audio_base64")
+    if ref_audio_b64:
+        audio_bytes = base64.b64decode(ref_audio_b64)
+        ref_path = f"/tmp/ref_audio_{abs(hash(ref_audio_b64)) % 100000}.mp3"
+        with open(ref_path, "wb") as f:
+            f.write(audio_bytes)
+        params.reference_audio = ref_path
 
     # Handle source audio for cover / repaint
     src_audio_b64 = job_input.get("src_audio_base64")
