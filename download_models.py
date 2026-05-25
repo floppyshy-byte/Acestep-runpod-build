@@ -16,7 +16,7 @@ CHECKPOINTS_DIR = "/app/checkpoints"
 os.environ["ACESTEP_CHECKPOINTS_DIR"] = CHECKPOINTS_DIR
 
 # Which DiT model to bake in? Default to what the handler uses.
-DIT_MODEL = os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-sft")
+DIT_MODEL = os.getenv("ACESTEP_CONFIG_PATH", "acestep-v15-xl-turbo")
 # Which LM model? Default to what the handler uses.
 LM_MODEL = os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-1.7B")
 

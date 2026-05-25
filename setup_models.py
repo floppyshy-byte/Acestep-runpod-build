@@ -148,7 +148,7 @@ def setup_checkpoints_from_cache() -> None:
     checkpoint_dir = Path(os.environ.get("ACESTEP_CHECKPOINTS_DIR", "/runpod-volume/checkpoints"))
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    repo_id = os.environ.get("ACESTEP_MAIN_MODEL_REPO", "Floppyshy/Ace-Step1.5-Custom")
+    repo_id = os.environ.get("ACESTEP_MAIN_MODEL_REPO", "ACE-Step/Ace-Step1.5")
     components_env = os.environ.get("ACESTEP_MAIN_MODEL_COMPONENTS", "")
     components = [c.strip() for c in components_env.split(",") if c.strip()]
 

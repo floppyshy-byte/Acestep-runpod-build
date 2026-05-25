@@ -6,7 +6,6 @@
 #
 # To use RunPod cached models, add these HF repo IDs when creating the endpoint:
 #   ACE-Step/Ace-Step1.5
-#   ACE-Step/acestep-v15-sft
 #
 # Layer ordering (large / stable -> small / volatile):
 #   1. Base image
@@ -61,10 +60,10 @@ WORKDIR /app
 ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 
 # Environment defaults (override at runtime in RunPod console).
-ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-sft
+ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-turbo
 ENV ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-4B
-ENV ACESTEP_MAIN_MODEL_REPO=Floppyshy/Ace-Step1.5-Custom
-ENV ACESTEP_MAIN_MODEL_COMPONENTS=acestep-v15-xl-sft,vae,Qwen3-Embedding-0.6B,acestep-5Hz-lm-4B
+ENV ACESTEP_MAIN_MODEL_REPO=ACE-Step/Ace-Step1.5
+ENV ACESTEP_MAIN_MODEL_COMPONENTS=acestep-v15-xl-turbo,vae,Qwen3-Embedding-0.6B,acestep-5Hz-lm-4B
 ENV ACESTEP_CHECKPOINTS_DIR=/runpod-volume/checkpoints
 ENV HF_HOME=/runpod-volume/huggingface-cache/hub
 ENV TRANSFORMERS_CACHE=/runpod-volume/huggingface-cache/hub
