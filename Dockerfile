@@ -6,6 +6,8 @@
 #
 # To use RunPod cached models, add these HF repo IDs when creating the endpoint:
 #   ACE-Step/Ace-Step1.5
+#   ACE-Step/acestep-v15-xl-turbo
+#   ACE-Step/acestep-5Hz-lm-4B
 #
 # Layer ordering (large / stable -> small / volatile):
 #   1. Base image
@@ -33,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-ARG CACHEBUST=3
+ARG CACHEBUST=4
 RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git . && echo "cache-bust: ${CACHEBUST}"
 
 RUN uv sync

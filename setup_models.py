@@ -28,9 +28,10 @@ def _log_tree(path: Path, prefix: str = "", max_depth: int = 3, _depth: int = 0)
             _log_tree(child, next_prefix, max_depth, _depth + 1)
 
 
-def _find_hf_cache_snapshot(repo_id: str) -> Path | None:
+def _find_hf_cache_snapshot(repo_id: str, hf_home: Path | None = None) -> Path | None:
     """Find the on-disk snapshot directory for a cached HF repo."""
-    hf_home = Path(os.environ.get("HF_HOME", "/runpod-volume/huggingface-cache/hub"))
+    if hf_home is None:
+        hf_home = Path(os.environ.get("HF_HOME", "/runpod-volume/huggingface-cache/hub"))
     sanitized = repo_id.replace("/", "--")
     repo_cache = hf_home / f"models--{sanitized}"
     if not repo_cache.exists():
@@ -136,9 +137,25 @@ def _mirror_component(src: Path, dst: Path) -> None:
                 print(f"[Setup] SKIP: file {child.name} already exists")
 
 
+def _mirror_standalone_repo(repo_id: str, dst: Path, hf_home: Path) -> bool:
+    """
+    Find a cached HF repo by repo_id and mirror its root contents into dst.
+    Returns True if successful.
+    """
+    snapshot = _find_hf_cache_snapshot(repo_id, hf_home)
+    if snapshot is None:
+        return False
+
+    print(f"[Setup] Found standalone repo snapshot for {repo_id}: {snapshot}")
+    _mirror_component(snapshot, dst)
+    return True
+
+
 def setup_checkpoints_from_cache() -> None:
     """
     Bridge RunPod's HF Model Cache to ACE-Step's expected checkpoint layout.
+    Supports both bundled repos (components inside subdirs) and standalone
+    repos (files at root, e.g. acestep-v15-xl-turbo, acestep-5Hz-lm-4B).
     """
     print("=" * 60)
     print("[Setup] Starting checkpoint setup from HF cache")
@@ -182,45 +199,58 @@ def setup_checkpoints_from_cache() -> None:
         print("\n[Setup] All checkpoints already present. Nothing to do.")
         return
 
-    # Try to find cached snapshot
-    snapshot = _find_hf_cache_snapshot(repo_id)
-    if snapshot is None:
+    # Try to find cached snapshot for the main repo
+    main_snapshot = _find_hf_cache_snapshot(repo_id, hf_home)
+    if main_snapshot is None:
         print(f"\n[Setup] WARNING: No HF cache snapshot found for {repo_id}")
         print(f"[Setup] Checked: {hf_home / ('models--' + repo_id.replace('/', '--'))}")
-        print("\n[Setup] Current checkpoint_dir contents:")
-        _log_tree(checkpoint_dir, max_depth=2)
-        return
+    else:
+        print(f"\n[Setup] Found main HF cache snapshot: {main_snapshot}")
+        print("[Setup] Snapshot contents:")
+        _log_tree(main_snapshot, max_depth=2)
 
-    print(f"\n[Setup] Found HF cache snapshot: {snapshot}")
-    print("[Setup] Snapshot contents:")
-    _log_tree(snapshot, max_depth=2)
+    # Validate each component in the main snapshot before linking
+    if main_snapshot:
+        print("\n[Setup] Validating main snapshot components:")
+        for comp in components:
+            _validate_component(comp, main_snapshot / comp)
 
-    # Validate each component in the snapshot before linking
-    print("\n[Setup] Validating snapshot components:")
-    for comp in components:
-        _validate_component(comp, snapshot / comp)
-
-    # Mirror components: symlink weights, copy everything else
+    # Mirror components: try main snapshot first, fallback to standalone repo
     print("\n[Setup] Mirroring components (symlink weights, copy code/config):")
     for comp in components:
-        src = snapshot / comp
         dst = checkpoint_dir / comp
-        if not src.exists():
-            print(f"[Setup] SKIP: component '{comp}' not found in snapshot")
-            continue
-        _mirror_component(src, dst)
-        print(f"[Setup] MIRRORED {dst} <- {src}")
+        src_in_main = main_snapshot / comp if main_snapshot else None
+
+        if src_in_main and src_in_main.exists():
+            _mirror_component(src_in_main, dst)
+            print(f"[Setup] MIRRORED {dst} <- {src_in_main}")
+        else:
+            # Fallback: look for a standalone cached repo named ACE-Step/<comp>
+            standalone_repo = f"ACE-Step/{comp}"
+            print(f"[Setup] Component '{comp}' not in main snapshot. Trying standalone repo {standalone_repo} ...")
+            ok = _mirror_standalone_repo(standalone_repo, dst, hf_home)
+            if ok:
+                print(f"[Setup] MIRRORED {dst} <- standalone repo {standalone_repo}")
+            else:
+                print(f"[Setup] SKIP: component '{comp}' not found in main snapshot or standalone repo {standalone_repo}")
 
     # Also mirror LM model for LLMHandler
     lm_model = os.environ.get("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B")
-    lm_src = snapshot / lm_model
     lm_dst = Path("/app/models") / lm_model
-    if lm_src.exists():
-        _validate_component(lm_model, lm_src)
-        _mirror_component(lm_src, lm_dst)
-        print(f"[Setup] MIRRORED LM model {lm_dst} <- {lm_src}")
+    lm_src_in_main = main_snapshot / lm_model if main_snapshot else None
+
+    if lm_src_in_main and lm_src_in_main.exists():
+        _validate_component(lm_model, lm_src_in_main)
+        _mirror_component(lm_src_in_main, lm_dst)
+        print(f"[Setup] MIRRORED LM model {lm_dst} <- {lm_src_in_main}")
     else:
-        print(f"[Setup] WARNING: LM model '{lm_model}' not found in snapshot")
+        standalone_repo = f"ACE-Step/{lm_model}"
+        print(f"[Setup] LM model '{lm_model}' not in main snapshot. Trying standalone repo {standalone_repo} ...")
+        ok = _mirror_standalone_repo(standalone_repo, lm_dst, hf_home)
+        if ok:
+            print(f"[Setup] MIRRORED LM model {lm_dst} <- standalone repo {standalone_repo}")
+        else:
+            print(f"[Setup] WARNING: LM model '{lm_model}' not found in main snapshot or standalone repo {standalone_repo}")
 
     # Final validation
     print("\n[Setup] Final checkpoint_dir validation:")
