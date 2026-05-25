@@ -106,7 +106,8 @@ def handler(event):
         # For cover / repaint / style-transfer
         "reference_audio_base64": "...",  # base64-encoded reference audio (style influence)
         "src_audio_base64": "...",        # base64-encoded source audio (audio-to-audio)
-        "audio_cover_strength": 0.7,      # 0.1 (loose) - 1.0 (strict)
+        "audio_cover_strength": 0.7,      # 0.1 (loose) - 1.0 (strict) — when to switch text conditioning
+        "cover_noise_strength": 0.0,      # 0.0=pure noise (no src structure) - 1.0=closest to src audio
         "repainting_start": 10.0,
         "repainting_end": 20.0,
       }
@@ -130,6 +131,8 @@ def handler(event):
     lm_temperature = job_input.get("lm_temperature", 0.85)
     lm_cfg_scale = job_input.get("lm_cfg_scale", 2.5)
     use_format = job_input.get("use_format", False)
+    audio_cover_strength = job_input.get("audio_cover_strength", 1.0)
+    cover_noise_strength = job_input.get("cover_noise_strength", 0.0)
 
     # Resolve task-specific instruction
     instruction = TASK_INSTRUCTIONS.get(task_type, "Fill the audio semantic mask based on the given conditions:")
@@ -187,6 +190,8 @@ def handler(event):
         shift=shift,
         seed=seed,
         lm_cfg_scale=lm_cfg_scale,
+        audio_cover_strength=audio_cover_strength,
+        cover_noise_strength=cover_noise_strength,
     )
 
     # Disable DCW for SFT models — PR #1207; DCW at 50 steps causes garbage audio
