@@ -139,6 +139,10 @@ def handler(event):
         seed=seed,
     )
 
+    # Disable DCW for SFT models — PR #1207; DCW at 50 steps causes garbage audio
+    if "sft" in os.getenv("ACESTEP_CONFIG_PATH", "").lower():
+        params.dcw_enabled = False
+
     # LM thinking mode
     if thinking:
         params.thinking = True
