@@ -147,6 +147,11 @@ def handler(event):
     if thinking:
         params.thinking = True
         params.lm_temperature = lm_temperature
+        params.dcw_scaler = 0.02
+        params.dcw_high_scaler = 0.06
+    else:
+        params.dcw_scaler = 0.05
+        params.dcw_high_scaler = 0.02
 
     # Handle reference audio for style transfer / cover
     ref_audio_b64 = job_input.get("reference_audio_base64")
