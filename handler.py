@@ -5,7 +5,8 @@ import runpod
 from contextlib import contextmanager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
-from acestep.inference import GenerationParams, GenerationConfig, generate_music
+from acestep.inference import GenerationParams, GenerationConfig, generate_music, format_sample
+from acestep.constants import TASK_INSTRUCTIONS
 from setup_models import setup_checkpoints_from_cache
 
 
@@ -89,15 +90,18 @@ def handler(event):
         "lyrics": "...",               # or "[Instrumental]"
         "duration": 120,               # seconds, 10-600
         "bpm": 128,                    # optional
-        "keyscale": "C Major",         # optional
+        "keyscale": "C Major",         # optional (also accepts "key_scale")
         "inference_steps": 8,          # 8 for turbo, 50 for xl-sft
         "guidance_scale": 7.0,
         "shift": 3.0,                  # 3.0 for turbo, 1.0 for xl-sft
         "seed": -1,
-        "batch_size": 1,               # 1-8
+        "batch_size": 2,               # 1-8 (default 2, matching official API)
         "audio_format": "mp3",         # mp3 | flac | wav
         "thinking": false,             # use LM planner for structure
         "lm_temperature": 0.85,
+        "lm_cfg_scale": 2.5,           # LLM CFG scale (official API default)
+        "use_format": false,           # use format_sample() to enhance caption/lyrics
+        "track_name": "...",           # for extract/lego tasks
 
         # For cover / repaint / style-transfer
         "reference_audio_base64": "...",  # base64-encoded reference audio (style influence)
@@ -115,19 +119,64 @@ def handler(event):
     lyrics = job_input.get("lyrics", "[Instrumental]")
     duration = job_input.get("duration", 30)
     bpm = job_input.get("bpm")
-    keyscale = job_input.get("keyscale", "N/A")
+    keyscale = job_input.get("keyscale") or job_input.get("key_scale", "N/A")
     inference_steps = job_input.get("inference_steps", 8)
     guidance_scale = job_input.get("guidance_scale", 7.0)
     shift = job_input.get("shift", 3.0)
     seed = job_input.get("seed", -1)
-    batch_size = job_input.get("batch_size", 1)
+    batch_size = job_input.get("batch_size", 2)
     audio_format = job_input.get("audio_format", "mp3")
     thinking = job_input.get("thinking", False)
     lm_temperature = job_input.get("lm_temperature", 0.85)
+    lm_cfg_scale = job_input.get("lm_cfg_scale", 2.5)
+    use_format = job_input.get("use_format", False)
+
+    # Resolve task-specific instruction
+    instruction = TASK_INSTRUCTIONS.get(task_type, "Fill the audio semantic mask based on the given conditions:")
+    if task_type in ("extract", "lego"):
+        track_name = job_input.get("track_name", "")
+        if track_name:
+            instruction = instruction.format(TRACK_NAME=track_name.upper())
+        else:
+            instruction = TASK_INSTRUCTIONS.get(f"{task_type}_default", instruction)
+
+    # Format sample enhancement (optional)
+    if use_format and caption:
+        user_metadata = {}
+        if bpm is not None:
+            user_metadata["bpm"] = bpm
+        if duration is not None and float(duration) > 0:
+            user_metadata["duration"] = float(duration)
+        if keyscale and keyscale != "N/A":
+            user_metadata["keyscale"] = keyscale
+        try:
+            fmt_result = format_sample(
+                llm_handler=llm_handler,
+                caption=caption,
+                lyrics=lyrics,
+                user_metadata=user_metadata if user_metadata else None,
+                temperature=lm_temperature,
+                use_constrained_decoding=True,
+            )
+            if fmt_result.success:
+                caption = fmt_result.caption or caption
+                lyrics = fmt_result.lyrics or lyrics
+                if fmt_result.bpm:
+                    bpm = fmt_result.bpm
+                if fmt_result.duration:
+                    duration = fmt_result.duration
+                if fmt_result.keyscale:
+                    keyscale = fmt_result.keyscale
+                print(f"[ACE-Step] format_sample applied: caption={caption[:60]}...")
+            else:
+                print(f"[ACE-Step] format_sample failed: {fmt_result.error}")
+        except Exception as exc:
+            print(f"[ACE-Step] format_sample error: {exc}")
 
     # Build params
     params = GenerationParams(
         task_type=task_type,
+        instruction=instruction,
         caption=caption,
         lyrics=lyrics,
         duration=duration,
@@ -137,6 +186,7 @@ def handler(event):
         guidance_scale=guidance_scale,
         shift=shift,
         seed=seed,
+        lm_cfg_scale=lm_cfg_scale,
     )
 
     # Disable DCW for SFT models — PR #1207; DCW at 50 steps causes garbage audio
@@ -180,6 +230,7 @@ def handler(event):
     config = GenerationConfig(
         batch_size=batch_size,
         audio_format=audio_format,
+        allow_lm_batch=True,
     )
 
     save_dir = "/tmp/outputs"
