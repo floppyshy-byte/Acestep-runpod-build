@@ -232,7 +232,10 @@ def handler(event):
                 params.audio_codes = codes
                 print(f"[ACE-Step] Extracted {codes.count('audio_code_')} audio codes")
             else:
-                print(f"[ACE-Step] Audio code extraction failed: {codes}")
+                return {
+                    "error": "Audio semantic code extraction failed",
+                    "details": f"Cover mode requires audio codes to preserve melody. Extraction result: {codes}",
+                }
         elif task_type == "repaint":
             params.repainting_start = job_input.get("repainting_start", 0.0)
             params.repainting_end = job_input.get("repainting_end", 10.0)
