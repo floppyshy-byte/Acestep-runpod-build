@@ -110,6 +110,21 @@ def handler(event):
         "cover_noise_strength": 0.0,      # 0.0=pure noise (no src structure) - 1.0=closest to src audio
         "repainting_start": 10.0,
         "repainting_end": 20.0,
+
+        # Extended generation controls (from Gradio UI)
+        "time_signature": "4/4",          # e.g. 4/4, 3/4, 6/8
+        "vocal_language": "english",      # english, chinese, japanese, korean, unknown
+        "use_adg": false,                 # enable Audio Deep Guidance
+        "cfg_interval_start": 0.0,        # CFG active from this fraction of steps
+        "cfg_interval_end": 1.0,          # CFG active until this fraction of steps
+        "infer_method": "ode",            # ode | sde
+        "sampler_mode": "euler",          # euler | midpoint | rk4 | heun | adaptive
+        "lm_top_k": 0,                    # LLM top-k sampling (0 = disabled)
+        "lm_top_p": 0.9,                  # LLM top-p sampling
+        "lm_negative_prompt": "NO USER INPUT",
+        "use_cot_metas": true,            # chain-of-thought metadata
+        "use_cot_caption": true,          # chain-of-thought caption
+        "use_cot_language": true,         # chain-of-thought language detection
       }
     }
     """
@@ -133,6 +148,21 @@ def handler(event):
     use_format = job_input.get("use_format", False)
     audio_cover_strength = job_input.get("audio_cover_strength", 1.0)
     cover_noise_strength = job_input.get("cover_noise_strength", 0.0)
+
+    # Extended generation controls (from Gradio UI audit)
+    time_signature = job_input.get("time_signature", "")
+    vocal_language = job_input.get("vocal_language", "unknown")
+    use_adg = job_input.get("use_adg", False)
+    cfg_interval_start = job_input.get("cfg_interval_start", 0.0)
+    cfg_interval_end = job_input.get("cfg_interval_end", 1.0)
+    infer_method = job_input.get("infer_method", "ode")
+    sampler_mode = job_input.get("sampler_mode", "euler")
+    lm_top_k = job_input.get("lm_top_k", 0)
+    lm_top_p = job_input.get("lm_top_p", 0.9)
+    lm_negative_prompt = job_input.get("lm_negative_prompt", "NO USER INPUT")
+    use_cot_metas = job_input.get("use_cot_metas", True)
+    use_cot_caption = job_input.get("use_cot_caption", True)
+    use_cot_language = job_input.get("use_cot_language", True)
 
     # Resolve task-specific instruction
     instruction = TASK_INSTRUCTIONS.get(task_type, "Fill the audio semantic mask based on the given conditions:")
@@ -192,6 +222,19 @@ def handler(event):
         lm_cfg_scale=lm_cfg_scale,
         audio_cover_strength=audio_cover_strength,
         cover_noise_strength=cover_noise_strength,
+        timesignature=time_signature,
+        vocal_language=vocal_language,
+        use_adg=use_adg,
+        cfg_interval_start=cfg_interval_start,
+        cfg_interval_end=cfg_interval_end,
+        infer_method=infer_method,
+        sampler_mode=sampler_mode,
+        lm_top_k=lm_top_k,
+        lm_top_p=lm_top_p,
+        lm_negative_prompt=lm_negative_prompt,
+        use_cot_metas=use_cot_metas,
+        use_cot_caption=use_cot_caption,
+        use_cot_language=use_cot_language,
     )
 
     # Disable DCW for SFT models — PR #1207; DCW at 50 steps causes garbage audio
