@@ -271,19 +271,10 @@ def handler(event):
 
         if task_type == "cover":
             params.audio_cover_strength = job_input.get("audio_cover_strength", 0.7)
-            # Auto-extract audio semantic codes from src_audio so the cover actually
-            # preserves the melodic structure of the original. Without codes, cover
-            # degrades to text2music with only padding/repaint masks.
-            print(f"[ACE-Step] Extracting audio codes from source audio...")
-            codes = dit_handler.convert_src_audio_to_codes(src_path)
-            if codes and not codes.startswith("❌"):
-                params.audio_codes = codes
-                print(f"[ACE-Step] Extracted {codes.count('audio_code_')} audio codes")
-            else:
-                return {
-                    "error": "Audio semantic code extraction failed",
-                    "details": f"Cover mode requires audio codes to preserve melody. Extraction result: {codes}",
-                }
+            # Official Gradio UI does NOT pass audio_codes for cover mode.
+            # Passing decoded audio codes causes OOD latents that collapse to
+            # white noise when cover_noise_strength > 0. We rely on src_audio
+            # alone so the pipeline VAE-encodes it to in-distribution latents.
         elif task_type == "repaint":
             params.repainting_start = job_input.get("repainting_start", 0.0)
             params.repainting_end = job_input.get("repainting_end", 10.0)
