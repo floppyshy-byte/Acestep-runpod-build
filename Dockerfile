@@ -21,8 +21,8 @@ FROM alpine:latest AS fetcher
 WORKDIR /app
 
 ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
-ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/refs/heads/${ACESTEP_COMMIT}/pyproject.toml /app/pyproject.toml
-ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/refs/heads/${ACESTEP_COMMIT}/uv.lock /app/uv.lock
+ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/${ACESTEP_COMMIT}/pyproject.toml /app/pyproject.toml
+ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/${ACESTEP_COMMIT}/uv.lock /app/uv.lock
 
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — compile Python deps only
@@ -46,7 +46,7 @@ COPY --from=fetcher /app /app
 WORKDIR /app
 
 ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
-RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
+RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
     && git checkout ${ACESTEP_COMMIT}
 
 RUN rm -rf .git
