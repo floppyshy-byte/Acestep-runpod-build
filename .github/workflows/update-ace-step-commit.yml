@@ -30,7 +30,7 @@ jobs:
       - name: Update Dockerfile if changed
         if: steps.fetch.outputs.latest != steps.current.outputs.pinned
         run: |
-          sed -i "s/ARG ACESTEP_COMMIT=.*/ARG ACESTEP_COMMIT=${{ steps.fetch.outputs.latest }}/" Dockerfile
+          sed -i "s/ARG ACESTEP_COMMIT=.*/ARG ACESTEP_COMMIT=${{ steps.fetch.outputs.latest }}/g" Dockerfile
 
       - name: Commit and push
         if: steps.fetch.outputs.latest != steps.current.outputs.pinned
