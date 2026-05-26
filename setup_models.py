@@ -191,6 +191,17 @@ def _fix_missing_index_json(checkpoint_dir: Path, repo_id: str, component: str) 
         _download_hf_raw(repo_id, f"{component}/model.safetensors.index.json", index_file)
 
 
+def _fix_missing_silence_latent(checkpoint_dir: Path, repo_id: str) -> None:
+    """
+    ACE-Step init expects silence_latent.pt in the config_path directory.
+    If RunPod's cached snapshot is stale and missing it, download from HF.
+    """
+    sft_dir = checkpoint_dir / "acestep-v15-xl-sft"
+    target = sft_dir / "silence_latent.pt"
+    if sft_dir.is_dir() and not target.exists():
+        _download_hf_raw(repo_id, "acestep-v15-xl-sft/silence_latent.pt", target)
+
+
 def setup_checkpoints_from_cache() -> None:
     """
     Bridge RunPod's HF Model Cache to ACE-Step's expected checkpoint layout.
@@ -294,6 +305,13 @@ def setup_checkpoints_from_cache() -> None:
             print(f"[Setup] MIRRORED LM model {lm_dst} <- standalone repo {standalone_repo}")
         else:
             print(f"[Setup] WARNING: LM model '{lm_model}' not found in main snapshot or standalone repo {standalone_repo}")
+
+    # Fix missing silence_latent.pt for SFT (expects it in config_path dir)
+    _fix_missing_silence_latent(checkpoint_dir, repo_id)
+
+    # Debug: show final checkpoint dir tree
+    print(f"\n[Setup] Final checkpoint_dir tree ({checkpoint_dir}):")
+    _log_tree(checkpoint_dir, max_depth=2)
 
     # Final validation
     print("\n[Setup] Final checkpoint_dir validation:")
