@@ -1,8 +1,8 @@
 name: Update ACE-Step Commit Pin
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
+  repository_dispatch:
+    types: [ace-step-updated]
   workflow_dispatch:
 
 permissions:
