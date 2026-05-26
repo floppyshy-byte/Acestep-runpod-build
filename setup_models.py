@@ -74,7 +74,10 @@ def _has_weights(path: Path) -> bool:
         "diffusion_pytorch_model.safetensors",
         "diffusion_pytorch_model.safetensors.index.json",
     )
-    return any((path / fname).exists() for fname in weight_names)
+    if any((path / fname).exists() for fname in weight_names):
+        return True
+    # Sharded safetensors without index (e.g. model-00001-of-00004.safetensors)
+    return any(f.name.startswith("model-") and f.name.endswith(".safetensors") for f in path.iterdir() if f.is_file())
 
 
 def _validate_component(name: str, path: Path) -> None:
@@ -149,6 +152,43 @@ def _mirror_standalone_repo(repo_id: str, dst: Path, hf_home: Path) -> bool:
     print(f"[Setup] Found standalone repo snapshot for {repo_id}: {snapshot}")
     _mirror_component(snapshot, dst)
     return True
+
+
+def _download_hf_raw(repo_id: str, filepath: str, dst: Path) -> bool:
+    """Download a single file from HuggingFace via raw CDN URL."""
+    import urllib.request
+    url = f"https://huggingface.co/{repo_id}/resolve/main/{filepath}"
+    print(f"[Setup] Downloading missing file from HF: {url}")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "acestep-setup/1.0"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            if resp.status != 200:
+                print(f"[Setup] FAILED to download {filepath}: HTTP {resp.status}")
+                return False
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            with open(dst, "wb") as f:
+                f.write(resp.read())
+        print(f"[Setup] DOWNLOADED {dst}")
+        return True
+    except Exception as exc:
+        print(f"[Setup] FAILED to download {filepath}: {exc}")
+        return False
+
+
+def _fix_missing_index_json(checkpoint_dir: Path, repo_id: str, component: str) -> None:
+    """
+    If a component has sharded safetensors but no index.json, download it from HF.
+    """
+    comp_dir = checkpoint_dir / component
+    if not comp_dir.is_dir():
+        return
+    has_shards = any(
+        f.name.startswith("model-") and f.name.endswith(".safetensors")
+        for f in comp_dir.iterdir() if f.is_file()
+    )
+    index_file = comp_dir / "model.safetensors.index.json"
+    if has_shards and not index_file.exists():
+        _download_hf_raw(repo_id, f"{component}/model.safetensors.index.json", index_file)
 
 
 def setup_checkpoints_from_cache() -> None:
@@ -233,6 +273,9 @@ def setup_checkpoints_from_cache() -> None:
                 print(f"[Setup] MIRRORED {dst} <- standalone repo {standalone_repo}")
             else:
                 print(f"[Setup] SKIP: component '{comp}' not found in main snapshot or standalone repo {standalone_repo}")
+
+        # Fix stale cache: download missing index.json for sharded models
+        _fix_missing_index_json(checkpoint_dir, repo_id, comp)
 
     # Also mirror LM model for LLMHandler
     lm_model = os.environ.get("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-4B")
