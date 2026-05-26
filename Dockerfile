@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-ARG ACESTEP_COMMIT=819c569b6f930b31680a70071231b4e85b603b21
+ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
 RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
     && git checkout ${ACESTEP_COMMIT}
 
