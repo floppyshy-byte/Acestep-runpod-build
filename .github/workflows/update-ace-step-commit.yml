@@ -1,0 +1,42 @@
+name: Update ACE-Step Commit Pin
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Fetch latest ACE-Step commit
+        id: fetch
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/floppyshy-byte/ACE-Step-1.5/commits/main | jq -r '.sha')
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Get current pinned commit
+        id: current
+        run: |
+          PINNED=$(grep -oP 'ARG ACESTEP_COMMIT=\K[a-f0-9]+' Dockerfile)
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+
+      - name: Update Dockerfile if changed
+        if: steps.fetch.outputs.latest != steps.current.outputs.pinned
+        run: |
+          sed -i "s/ARG ACESTEP_COMMIT=.*/ARG ACESTEP_COMMIT=${{ steps.fetch.outputs.latest }}/" Dockerfile
+
+      - name: Commit and push
+        if: steps.fetch.outputs.latest != steps.current.outputs.pinned
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "build: bump ACE-Step to ${{ steps.fetch.outputs.latest }}"
+          git push
