@@ -2,6 +2,8 @@ import os
 import base64
 import signal
 import runpod
+import urllib.request
+from pathlib import Path
 from contextlib import contextmanager
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
@@ -40,6 +42,25 @@ def timeout(seconds: int, label: str = "operation"):
 
 GENERATION_TIMEOUT = int(os.getenv("ACESTEP_GENERATION_TIMEOUT", "300"))
 INIT_TIMEOUT = int(os.getenv("ACESTEP_INIT_TIMEOUT", "180"))
+
+
+def _download_audio(url: str, suffix: str = ".mp3") -> str | None:
+    """Download audio from a URL and return the local temp file path."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ACE-Step-RunPod/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            if resp.status != 200:
+                print(f"[ACE-Step] WARNING: audio download returned HTTP {resp.status} for {url}")
+                return None
+            data = resp.read()
+        tmp_path = f"/tmp/downloaded_audio_{abs(hash(url)) % 100000}{suffix}"
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+        print(f"[ACE-Step] Downloaded audio from URL to {tmp_path} ({len(data)} bytes)")
+        return tmp_path
+    except Exception as exc:
+        print(f"[ACE-Step] WARNING: failed to download audio from {url}: {exc}")
+        return None
 
 # ---------------------------------------------------------------------------
 # Bridge RunPod HF cache to ACE-Step checkpoint layout
@@ -251,33 +272,45 @@ def handler(event):
         params.dcw_scaler = 0.05
         params.dcw_high_scaler = 0.02
 
-    # Handle reference audio for style transfer / cover
+    # Handle reference audio for style transfer / cover (base64 preferred, URL fallback)
     ref_audio_b64 = job_input.get("reference_audio_base64")
+    ref_audio_url = job_input.get("reference_audio_url")
     if ref_audio_b64:
         audio_bytes = base64.b64decode(ref_audio_b64)
         ref_path = f"/tmp/ref_audio_{abs(hash(ref_audio_b64)) % 100000}.mp3"
         with open(ref_path, "wb") as f:
             f.write(audio_bytes)
         params.reference_audio = ref_path
+    elif ref_audio_url:
+        ref_path = _download_audio(ref_audio_url, ".mp3")
+        if ref_path:
+            params.reference_audio = ref_path
 
-    # Handle source audio for cover / repaint
+    # Handle source audio for cover / repaint (base64 preferred, URL fallback)
     src_audio_b64 = job_input.get("src_audio_base64")
-    if src_audio_b64 and task_type in ("cover", "repaint"):
-        audio_bytes = base64.b64decode(src_audio_b64)
-        src_path = f"/tmp/src_audio_{abs(hash(src_audio_b64)) % 100000}.mp3"
-        with open(src_path, "wb") as f:
-            f.write(audio_bytes)
-        params.src_audio = src_path
+    src_audio_url = job_input.get("src_audio_url")
+    if task_type in ("cover", "repaint"):
+        if src_audio_b64:
+            audio_bytes = base64.b64decode(src_audio_b64)
+            src_path = f"/tmp/src_audio_{abs(hash(src_audio_b64)) % 100000}.mp3"
+            with open(src_path, "wb") as f:
+                f.write(audio_bytes)
+            params.src_audio = src_path
+        elif src_audio_url:
+            src_path = _download_audio(src_audio_url, ".mp3")
+            if src_path:
+                params.src_audio = src_path
 
-        if task_type == "cover":
-            params.audio_cover_strength = job_input.get("audio_cover_strength", 0.7)
-            # Official Gradio UI does NOT pass audio_codes for cover mode.
-            # Passing decoded audio codes causes OOD latents that collapse to
-            # white noise when cover_noise_strength > 0. We rely on src_audio
-            # alone so the pipeline VAE-encodes it to in-distribution latents.
-        elif task_type == "repaint":
-            params.repainting_start = job_input.get("repainting_start", 0.0)
-            params.repainting_end = job_input.get("repainting_end", 10.0)
+        if params.src_audio:
+            if task_type == "cover":
+                params.audio_cover_strength = job_input.get("audio_cover_strength", 0.7)
+                # Official Gradio UI does NOT pass audio_codes for cover mode.
+                # Passing decoded audio codes causes OOD latents that collapse to
+                # white noise when cover_noise_strength > 0. We rely on src_audio
+                # alone so the pipeline VAE-encodes it to in-distribution latents.
+            elif task_type == "repaint":
+                params.repainting_start = job_input.get("repainting_start", 0.0)
+                params.repainting_end = job_input.get("repainting_end", 10.0)
 
     config = GenerationConfig(
         batch_size=batch_size,
