@@ -33,9 +33,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
-RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
-    && git checkout ${ACESTEP_COMMIT}
 
 RUN uv sync
 RUN uv pip install runpod accelerate
@@ -58,6 +55,11 @@ COPY --from=builder /root/.local/bin/uv /root/.local/bin/uv
 COPY --from=builder /app /app
 
 WORKDIR /app
+
+ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
+RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
+    && git checkout ${ACESTEP_COMMIT}
+
 ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 
 # Environment defaults (override at runtime in RunPod console).
