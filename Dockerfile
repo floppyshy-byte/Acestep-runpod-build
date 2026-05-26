@@ -33,8 +33,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /app
-ARG CACHEBUST=5
-RUN git clone --depth 1 https://github.com/floppyshy-byte/ACE-Step-1.5.git . && echo "cache-bust: ${CACHEBUST}"
+ARG ACESTEP_COMMIT=819c569b6f930b31680a70071231b4e85b603b21
+RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
+    && git checkout ${ACESTEP_COMMIT}
 
 RUN uv sync
 RUN uv pip install runpod accelerate
