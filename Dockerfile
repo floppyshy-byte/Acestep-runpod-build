@@ -49,7 +49,7 @@ ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
 RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git /tmp/ace-step \
     && cd /tmp/ace-step && git checkout ${ACESTEP_COMMIT} \
     && rm -rf /tmp/ace-step/.git \
-    && cp -r /tmp/ace-step/* /app/ \
+    && cp -a /tmp/ace-step/. /app/ \
     && rm -rf /tmp/ace-step
 RUN uv sync
 RUN uv pip install runpod accelerate
