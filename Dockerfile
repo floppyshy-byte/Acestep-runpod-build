@@ -16,6 +16,16 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# Stage 0: uv sync needs
+# ---------------------------------------------------------------------------
+FROM alpine:latest AS fetcher
+WORKDIR /app
+
+ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
+ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/refs/heads/${ACESTEP_COMMIT}/pyproject.toml /app/pyproject.toml
+ADD https://raw.githubusercontent.com/floppyshy-byte/ACE-Step-1.5/refs/heads/${ACESTEP_COMMIT}/uv.lock /app/uv.lock
+
+# ---------------------------------------------------------------------------
 # Stage 1: Builder — compile Python deps only
 # ---------------------------------------------------------------------------
 FROM nvidia/cuda:13.2.1-devel-ubuntu22.04 AS builder
@@ -32,7 +42,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+COPY --from=fetcher /app /app
+
 WORKDIR /app
+
+ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
+RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
+    && git checkout ${ACESTEP_COMMIT}
 
 RUN uv sync
 RUN uv pip install runpod accelerate
@@ -55,10 +71,6 @@ COPY --from=builder /root/.local/bin/uv /root/.local/bin/uv
 COPY --from=builder /app /app
 
 WORKDIR /app
-
-ARG ACESTEP_COMMIT=6adf5f1382096d757de11ce20afc86ba746e2100
-RUN git clone https://github.com/floppyshy-byte/ACE-Step-1.5.git . \
-    && git checkout ${ACESTEP_COMMIT}
 
 ENV PATH="/app/.venv/bin:/root/.local/bin:${PATH}"
 
