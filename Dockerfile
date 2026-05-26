@@ -2,7 +2,7 @@
 # ACE-Step 1.5 — RunPod Serverless Worker (Slim)
 # =============================================================================
 # No model weights baked in. We rely on RunPod's cached model storage or
-# let ACE-Step download on first cold start. Image is ~2-3 GB vs ~15 GB.
+# let ACE-Step download on first cold start. Image is ~2-3 GB vs ~15 GB..
 #
 # To use RunPod cached models, add this HF repo ID when creating the endpoint:
 #   Floppyshy/Ace-Step1.5-Custom
